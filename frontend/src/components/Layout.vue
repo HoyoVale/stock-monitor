@@ -3,6 +3,7 @@
     <n-layout-header style="height: 56px; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #30363d; background-color: #0d1117;">
       <div style="display: flex; align-items: center; gap: 12px;">
         <span style="font-size: 20px; font-weight: 700; color: #f0b90b;">📈 股市监控系统</span>
+        <StockSearch />
       </div>
       <div style="display: flex; align-items: center; gap: 20px; font-size: 13px;">
         <span v-if="indices.length > 0">
@@ -39,6 +40,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { NLayout, NLayoutHeader, NLayoutSider, NLayoutContent, NLayoutFooter, NMenu } from 'naive-ui'
 import type { MenuOption } from 'naive-ui'
 import { useStockStore } from '../stores/stock'
+import StockSearch from './StockSearch.vue'
 
 const route = useRoute()
 const router = useRouter()

@@ -18,26 +18,51 @@
       </n-card>
     </div>
     <h3 style="color: #e6edf3; margin-bottom: 12px; font-size: 16px;">K 线图</h3>
-    <KLineChart :data="bars" />
+    <KLineChart :data="bars" style="margin-bottom: 24px;" />
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+      <div>
+        <h3 style="color: #e6edf3; margin-bottom: 12px; font-size: 16px;">技术指标</h3>
+        <IndicatorPanel :indicators="indicatorList" />
+      </div>
+      <DecisionCard v-if="suggestion" :data="suggestion" />
+    </div>
   </div>
   <div v-else style="text-align: center; padding: 60px; color: #8b949e;">加载中...</div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { NCard } from 'naive-ui'
 import KLineChart from '../components/KLineChart.vue'
-import { fetchStockQuote, fetchStockBars } from '../api'
+import IndicatorPanel from '../components/IndicatorPanel.vue'
+import DecisionCard from '../components/DecisionCard.vue'
+import { fetchStockQuote, fetchStockBars, fetchIndicators, fetchSuggestion } from '../api'
 import type { QuoteData, BarData } from '../types/stock'
 
 const route = useRoute()
 const quote = ref<QuoteData | null>(null)
 const bars = ref<BarData[]>([])
+const indicatorResult = ref<any>({ indicators: [] })
+const suggestion = ref<any>(null)
+
+const indicatorList = computed(() => {
+  return (indicatorResult.value?.indicators || indicatorResult.value || []).map((ind: any) => ({
+    name: ind.name,
+    signal: ind.signal || 'neutral',
+    judgment: ind.judgment || '观望',
+    weight: ind.weight || 0,
+    raw_value: ind.values || ind.raw_value || {},
+  }))
+})
 
 async function load(code: string) {
   quote.value = await fetchStockQuote(code)
   bars.value = await fetchStockBars(code)
+  try {
+    indicatorResult.value = await fetchIndicators(code)
+    suggestion.value = await fetchSuggestion(code, quote.value?.name || '')
+  } catch {}
 }
 
 onMounted(() => load(route.params.code as string))
