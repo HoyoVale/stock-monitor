@@ -7,12 +7,12 @@
     clear-after-select
     @update:value="handleInput"
     @select="handleSelect"
-    :style="{ width: '240px' }"
+    class="stock-search"
   />
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { NAutoComplete } from 'naive-ui'
 import { fetchStocks } from '../api'
@@ -48,3 +48,21 @@ function handleSelect(code: string) {
   router.push({ name: 'stock-detail', params: { code } })
 }
 </script>
+
+<style scoped>
+.stock-search {
+  width: 240px;
+}
+
+@media (max-width: 768px) {
+  .stock-search {
+    width: 100%;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .stock-search {
+    width: 180px;
+  }
+}
+</style>
