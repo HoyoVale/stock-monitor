@@ -4,6 +4,27 @@ import { cachedRequest } from './cache'
 
 const http = axios.create({ baseURL: '/api' })
 
+// Auth interceptor: inject Bearer token from store
+http.interceptors.request.use((config) => {
+  const token = localStorage.getItem('stock-monitor-token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+// Response interceptor: handle 401 by clearing auth
+http.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error?.response?.status === 401) {
+      const { useAuthStore } = require('../stores/auth')
+      useAuthStore().logout()
+    }
+    return Promise.reject(error)
+  },
+)
+
 export { http }
 
 export interface MarketStatus {
