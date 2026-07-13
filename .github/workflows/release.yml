@@ -15,10 +15,9 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract version
         id: ver
@@ -31,37 +30,33 @@ jobs:
             echo "trigger=branch" >> $GITHUB_OUTPUT
           fi
           echo "version=$V" >> $GITHUB_OUTPUT
-          echo "Version: $V (trigger: ${{ steps.ver.outputs.trigger }})"
+          echo "Version=$V Trigger=${{ steps.ver.outputs.trigger }}"
 
-      - name: Create git tag (branch trigger only)
+      - name: Create git tag (branch trigger)
         if: steps.ver.outputs.trigger == 'branch'
         run: |
           git config user.name "Release Bot"
           git config user.email "release@github.com"
           git tag -a "v${{ steps.ver.outputs.version }}" -m "Release v${{ steps.ver.outputs.version }}"
           git push origin "v${{ steps.ver.outputs.version }}"
-          echo "Tag v${{ steps.ver.outputs.version }} created"
 
       - name: Setup Node.js
-        uses: actions/setup-node@1a047faa6befd5ef37cff5cd18bcc5f08f28d051
+        uses: actions/setup-node@v4
         with:
           node-version: 22
 
       - name: Build frontend
         run: |
-          cd frontend
-          npm ci
-          npm run build 2>/dev/null || echo "Frontend build skipped"
+          cd frontend && npm ci && npm run build
 
       - name: Extract changelog
         run: |
-          awk "/^## \[${{ steps.ver.outputs.version }}\]/,/^## \[/" CHANGELOG.md | tail -n +2 | head -n -1 > release-body.md
-          [ -s release-body.md ] || echo "v${{ steps.ver.outputs.version }} release" > release-body.md
+          awk "/^## [${{ steps.ver.outputs.version }}]/,/^## /" CHANGELOG.md | tail -n +2 | head -n -1 > release-body.md
+          [ -s release-body.md ] || echo "v${{ steps.ver.outputs.version }}" > release-body.md
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@c062c08b532815e1b8c5411926e6e3d56e3ab0e1
+        uses: softprops/action-gh-release@v2
         with:
           name: v${{ steps.ver.outputs.version }}
           body_path: release-body.md
-          prerelease: false
           generate_release_notes: true

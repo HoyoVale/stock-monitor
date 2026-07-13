@@ -15,25 +15,17 @@ jobs:
       security-events: write
       actions: read
       contents: read
-
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@45775bd8235c68ba998cffa5171334d58593da47
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
         with:
           languages: python, javascript-typescript
-
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@45775bd8235c68ba998cffa5171334d58593da47
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@45775bd8235c68ba998cffa5171334d58593da47
+      - uses: github/codeql-action/autobuild@v3
+      - uses: github/codeql-action/analyze@v3
 
   dependency-review:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - name: Dependency Review
-        uses: actions/dependency-review-action@3b139cfc5fae8b618d3eae3675e383bb1769c019
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4

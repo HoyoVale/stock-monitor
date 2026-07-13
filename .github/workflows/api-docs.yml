@@ -13,35 +13,30 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: write
-
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - name: Set up Python
-        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
           cache-dependency-path: 'backend/requirements.txt'
-
       - name: Install deps
         run: pip install -r backend/requirements.txt
-
       - name: Generate OpenAPI spec
         run: |
           cd backend
           python -c "
           from app.main import app
-          import json
+          import json, os
+          os.makedirs('../docs', exist_ok=True)
           with open('../docs/openapi.json', 'w') as f:
               json.dump(app.openapi(), f, ensure_ascii=False, indent=2)
           print('OpenAPI spec generated')
           "
-
       - name: Commit updated spec
         run: |
           git config user.name "Docs Bot"
           git config user.email "docs@github.com"
           git add docs/openapi.json
-          git diff --staged --quiet || git commit -m "docs: update OpenAPI spec"
+          git diff --staged --quiet || git commit -m "docs: update OpenAPI spec [skip ci]"
           git push
