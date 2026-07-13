@@ -65,6 +65,7 @@ const menuOptions: MenuOption[] = [
   { label: '📊 大盘', key: 'dashboard' },
   { label: '⭐ 自选股', key: 'watchlist' },
   { label: '🔔 预警', key: 'alerts' },
+  { label: '📈 回测', key: 'backtest' },
 ]
 
 function handleMenuSelect(key: string) {
