@@ -41,3 +41,13 @@ export async function addToWatchlist(code: string, name: string, group = '默认
 export async function removeFromWatchlist(id: number): Promise<void> {
   await http.delete(`/watchlist/${id}`)
 }
+
+export async function fetchIndicators(code: string): Promise<any> {
+  const { data } = await http.get(`/indicators/${code}`)
+  return data
+}
+
+export async function fetchSuggestion(code: string, name?: string): Promise<any> {
+  const { data } = await http.get(`/suggestions/${code}`, { params: { name } })
+  return data
+}

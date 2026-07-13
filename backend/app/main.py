@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import indices, stocks, watchlist
+from app.api import alerts, indices, indicators, stocks, watchlist
 from app.database import init_db
 from app.init_data import init_app_data
 from app.services.scheduler import start_jobs, stop_jobs
@@ -39,3 +39,6 @@ app.add_middleware(
 app.include_router(indices.router)
 app.include_router(stocks.router)
 app.include_router(watchlist.router)
+app.include_router(indicators.router)
+app.include_router(indicators.suggestion_router)
+app.include_router(alerts.router)
