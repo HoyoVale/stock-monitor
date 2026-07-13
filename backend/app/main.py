@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import alerts, backtest, indices, indicators, stocks, watchlist
+from app.api import alerts, backtest, indices, indicators, predictions, stocks, watchlist
 from app.database import init_db
 from app.init_data import init_app_data
 from app.services.scheduler import start_jobs, stop_jobs
@@ -26,7 +26,7 @@ async def lifespan(app: FastAPI):
     logger.info("已关闭")
 
 
-app = FastAPI(title="股市监控系统", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="股市监控系统", version="0.3.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -42,3 +42,4 @@ app.include_router(watchlist.router)
 app.include_router(indicators.router)
 app.include_router(alerts.router)
 app.include_router(backtest.router)
+app.include_router(predictions.router)

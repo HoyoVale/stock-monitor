@@ -31,6 +31,12 @@ const routes = [
     component: () => import('../views/Backtest.vue'),
     meta: { title: '历史回测' },
   },
+  {
+    path: '/predictions',
+    name: 'predictions',
+    component: () => import('../views/Predictions.vue'),
+    meta: { title: 'AI 预测' },
+  },
 ]
 
 export default createRouter({
