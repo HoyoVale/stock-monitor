@@ -5,20 +5,76 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
     labels:
       - "dependencies"
       - "python"
+    groups:
+      fastapi:
+        patterns:
+          - "fastapi*"
+          - "uvicorn*"
+          - "starlette*"
+      data:
+        patterns:
+          - "pandas*"
+          - "akshare*"
+      testing:
+        patterns:
+          - "pytest*"
+          - "httpx*"
+      sql:
+        patterns:
+          - "sqlalchemy*"
+          - "aiosqlite*"
+      misc:
+        patterns:
+          - "apscheduler*"
+          - "chinese-calendar*"
 
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
       interval: "weekly"
       day: "monday"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
     labels:
       - "dependencies"
       - "javascript"
+    groups:
+      vue:
+        patterns:
+          - "vue*"
+          - "@vue/*"
+          - "vue-router*"
+          - "pinia*"
+      ui:
+        patterns:
+          - "naive-ui*"
+          - "@vicons/*"
+      charts:
+        patterns:
+          - "echarts*"
+          - "vue-echarts*"
+      build:
+        patterns:
+          - "vite*"
+          - "@vitejs/*"
+          - "typescript*"
+          - "vue-tsc*"
+      lint:
+        patterns:
+          - "eslint*"
+          - "prettier*"
+          - "@eslint/*"
+      testing:
+        patterns:
+          - "vitest*"
+          - "@vue/test-utils*"
+          - "jsdom*"
+      misc:
+        patterns:
+          - "axios*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -28,3 +84,7 @@ updates:
     labels:
       - "dependencies"
       - "ci"
+    groups:
+      actions:
+        patterns:
+          - "*"

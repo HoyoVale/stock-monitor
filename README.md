@@ -1,5 +1,10 @@
 # 股市监控系统 (Stock Monitor)
 
+[![CI](https://github.com/HoyoVale/stock-monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/HoyoVale/stock-monitor/actions/workflows/ci.yml)
+[![Security](https://github.com/HoyoVale/stock-monitor/actions/workflows/security.yml/badge.svg)](https://github.com/HoyoVale/stock-monitor/actions/workflows/security.yml)
+[![Release](https://github.com/HoyoVale/stock-monitor/actions/workflows/release.yml/badge.svg)](https://github.com/HoyoVale/stock-monitor/actions/workflows/release.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 基于 FastAPI + Vue 3 的 A 股实时监控与智能决策辅助系统。
 
 ## 功能特性
@@ -126,6 +131,7 @@ cd frontend && npm test  # 前端 vitest
 | Phase 3 | ✅ 完成 | 通知系统（邮件/Webhook）+ 前端预警管理 + 历史回测 |
 | Phase 4 | ✅ 完成 | 多数据源 + WebSocket 实时推送 + JWT 用户认证 |
 | Phase 5 | ✅ 完成 | 用户数据隔离 + 结构化日志 + 系统监控 + 健康面板 |
+| Phase 6 | 🔄 进行中 | AI 预测 + 基金/ETF + 自定义策略 + E2E 测试 + i18n |
 
 ## 许可证
 
