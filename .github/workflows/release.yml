@@ -10,11 +10,47 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      packages: write
+      discussions: write
+
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@1a047faa6befd5ef37cff5cd18bcc5f08f28d051
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm ci
+          npm run build
+
+      - name: Extract changelog
+        id: changelog
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          # Extract the section for this version from CHANGELOG.md
+          awk "/^## \[${VERSION}\]/,/^## \[/" CHANGELOG.md | tail -n +2 | head -n -1 > release-body.md
+          echo "Release notes generated"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@c062c08b532815e1b8c5411926e6e3d56e3ab0e1
         with:
-          generate_release_notes: true
+          name: v${{ steps.changelog.outputs.version }}
+          body_path: release-body.md
           prerelease: ${{ contains(github.ref, '-alpha') || contains(github.ref, '-beta') || contains(github.ref, '-rc') }}
+          generate_release_notes: true
+          files: |
+            frontend/dist/**/*
+
+      - name: Create release discussion
+        uses: softprops/action-gh-release@c062c08b532815e1b8c5411926e6e3d56e3ab0e1
+        with:
+          discussion_category_name: Announcements
