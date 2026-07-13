@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { IndexData, QuoteData, BarData, StockInfo, WatchlistItem } from '../types/stock'
+import type { IndexData, QuoteData, BarData, StockInfo, WatchlistItem, AlertRule, AlertRecord } from '../types/stock'
 import { cachedRequest } from './cache'
 
 const http = axios.create({ baseURL: '/api' })
@@ -63,7 +63,7 @@ export async function fetchIndicators(code: string): Promise<any> {
   return cachedRequest(
     () => http.get(`/indicators/${code}`).then(({ data }) => data),
     `indicators:${code}`,
-    300000, // 指标缓存 5 分钟
+    300000,
   )
 }
 
@@ -77,4 +77,30 @@ export async function fetchMarketStatus(): Promise<MarketStatus> {
     'market-status',
     15000,
   )
+}
+
+// Alert APIs
+
+export async function fetchAlertRules(): Promise<AlertRule[]> {
+  return http.get('/alerts/rules').then(({ data }) => data)
+}
+
+export async function createAlertRule(data: { stock_code: string; alert_type: string; threshold: number }): Promise<AlertRule> {
+  return http.post('/alerts/rules', data).then(({ data: d }) => d)
+}
+
+export async function deleteAlertRule(id: number): Promise<void> {
+  await http.delete(`/alerts/rules/${id}`)
+}
+
+export async function toggleAlertRule(id: number, enabled: boolean): Promise<void> {
+  await http.patch(`/alerts/rules/${id}`, null, { params: { enabled } })
+}
+
+export async function fetchAlertRecords(limit = 50): Promise<AlertRecord[]> {
+  return http.get('/alerts/records', { params: { limit } }).then(({ data }) => data)
+}
+
+export async function fetchUnreadAlertCount(): Promise<number> {
+  return http.get('/alerts/unread-count').then(({ data }) => data.count)
 }

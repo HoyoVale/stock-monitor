@@ -44,3 +44,21 @@ export interface WatchlistItem {
   sort_order: number
   group_name: string
 }
+
+export interface AlertRule {
+  id: number
+  stock_code: string
+  alert_type: 'price_above' | 'price_below'
+  threshold: number
+  enabled: boolean
+  created_at: string
+}
+
+export interface AlertRecord {
+  id: number
+  rule_id: number | null
+  stock_code: string
+  triggered_at: string
+  price: number | null
+  message: string | null
+}
