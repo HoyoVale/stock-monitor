@@ -1,0 +1,39 @@
+name: Bug Report
+description: 提交 Bug 报告
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: textarea
+    attributes:
+      label: 描述问题
+      description: 清晰简洁地描述遇到的问题
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 复现步骤
+      description: |
+        1. 打开 '...'
+        2. 点击 '...'
+        3. 滚动到 '...'
+        4. 看到错误
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 期望行为
+      description: 你期望发生什么
+  - type: textarea
+    attributes:
+      label: 截图
+      description: 如果有截图，拖拽到此处
+  - type: input
+    attributes:
+      label: 运行环境
+      placeholder: "OS: Windows 11, Browser: Chrome 120, Python: 3.12"
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 附加信息
+      description: 任何其他有助于诊断的信息

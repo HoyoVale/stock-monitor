@@ -1,0 +1,11 @@
+# 后端代码
+/backend/ @HoyoVale
+
+# 前端代码
+/frontend/ @HoyoVale
+
+# CI/CD 工作流
+/.github/workflows/ @HoyoVale
+
+# 文档
+*.md @HoyoVale
