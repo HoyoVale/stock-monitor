@@ -15,6 +15,8 @@
 - **多数据源** — akshare + 东方财富双数据源，故障自动切换
 - **WebSocket 实时推送** — 行情实时推送，断线自动重连 + HTTP 降级
 - **用户认证** — JWT 登录/注册，路由守卫
+- **用户数据隔离** — 自选股/预警/回测历史按用户隔离
+- **系统监控** — 结构化日志 + 请求中间件 + 数据源统计 + 健康面板
 
 ## 技术架构
 
@@ -97,9 +99,12 @@ cd frontend && npm test  # 前端 vitest
 | GET | `/api/indicators/{code}` | 技术指标 (MACD/RSI/KDJ/BOLL/MA) |
 | GET | `/api/suggestions/{code}` | 决策建议 (0-100 评分) |
 | POST | `/api/backtest` | 历史回测 |
+| GET | `/api/backtest/history` | 回测历史 |
 | POST | `/api/auth/register` | 用户注册 |
 | POST | `/api/auth/login` | 用户登录 (JWT) |
 | GET | `/api/auth/me` | 当前用户信息 |
+| GET | `/api/health` | 系统健康检查 |
+| GET | `/api/health/detailed` | 详细系统状态 |
 | WS | `/ws/quotes?codes=` | WebSocket 实时行情 |
 
 ## 决策引擎评分模型
@@ -120,7 +125,7 @@ cd frontend && npm test  # 前端 vitest
 | Phase 2 | ✅ 完成 | 技术分析 + 决策建议引擎 + 价格预警 + 性能优化 + 测试 |
 | Phase 3 | ✅ 完成 | 通知系统（邮件/Webhook）+ 前端预警管理 + 历史回测 |
 | Phase 4 | ✅ 完成 | 多数据源 + WebSocket 实时推送 + JWT 用户认证 |
-| Phase 5 | 📋 计划中 | AI 预测模型、Docker 部署、移动端适配、WebSocket 优化 |
+| Phase 5 | ✅ 完成 | 用户数据隔离 + 结构化日志 + 系统监控 + 健康面板 |
 
 ## 许可证
 

@@ -15,7 +15,6 @@ from app.services.scheduler import start_jobs, stop_jobs
 
 configure_logging()
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -30,7 +29,7 @@ async def lifespan(app: FastAPI):
     logger.info("已关闭")
 
 
-app = FastAPI(title="股市监控系统", version="0.3.0", lifespan=lifespan)
+app = FastAPI(title="股市监控系统", version="0.4.0", lifespan=lifespan)
 
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(

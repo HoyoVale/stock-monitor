@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-13
+
+### Added (Phase 5)
+- 用户数据隔离
+  - WatchlistItem / AlertRule / AlertRecord / BacktestResult 关联 user_id 外键
+  - 数据库迁移脚本 (migration_user_isolation.py)
+  - API 端点统一过滤当前用户数据 (get_current_user 依赖)
+  - 回测结果持久化 + GET /api/backtest/history + DELETE 端点
+- 系统监控与日志
+  - 结构化 JSON 日志 (logging_config.py, LOG_LEVEL / LOG_FILE / LOG_FORMAT 环境变量)
+  - 请求日志中间件 (RequestLoggingMiddleware: 方法 + 路径 + 状态码 + 耗时)
+  - 数据源调用统计 (DatasourceStats: 成功/失败/平均耗时)
+  - GET /api/health/detailed 系统状态 API (版本/运行时间/数据源统计)
+  - 前端 SystemHealthPanel 组件 (Naive UI 卡片)
+  - 日志按日轮转 (TimedRotatingFileHandler, 保留30天)
+
 ## [0.3.0] - 2026-07-13
 
 ### Added (Phase 4)
