@@ -1,24 +1,17 @@
-import tseslint from '@typescript-eslint/eslint-plugin'
-import tsparser from '@typescript-eslint/parser'
+import pluginVue from 'eslint-plugin-vue'
+import tsEslint from '@typescript-eslint/eslint-plugin'
 import vueParser from 'vue-eslint-parser'
+import tsParser from '@typescript-eslint/parser'
 
 export default [
-  {
-    ignores: ['dist/**', 'node_modules/**', 'coverage/**'],
-  },
+  { ignores: ['dist/**', 'node_modules/**', 'coverage/**'] },
   {
     files: ['src/**/*.ts', 'src/**/*.vue'],
     languageOptions: {
       parser: vueParser,
-      parserOptions: {
-        parser: tsparser,
-        ecmaVersion: 'latest',
-        sourceType: 'module',
-      },
+      parserOptions: { parser: tsParser, ecmaVersion: 'latest', sourceType: 'module' },
     },
-    plugins: {
-      '@typescript-eslint': tseslint,
-    },
+    plugins: { '@typescript-eslint': tsEslint, vue: pluginVue },
     rules: {
       'no-console': 'warn',
       'no-debugger': 'error',
