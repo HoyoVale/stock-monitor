@@ -2,10 +2,12 @@
 股价预测服务 — 基于 sklearn LinearRegression + 特征工程的轻量预测。
 
 使用 async + ProcessPoolExecutor 避免阻塞主线程。
+内置模型缓存: 当日线数据未变更时复用已训练模型。
 输出: 未来 N 日预测价格 + 置信区间 + 准确率指标。
 """
 
 import asyncio
+import hashlib
 import logging
 from concurrent.futures import ProcessPoolExecutor
 from datetime import date
@@ -14,6 +16,12 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 
 logger = logging.getLogger(__name__)
+
+
+def _make_data_hash(closes: List[float]) -> str:
+    """计算收盘价序列的哈希，用于缓存键。"""
+    raw = ",".join(f"{c:.4f}" for c in closes[-30:])
+    return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
 
 def _train_and_predict(
@@ -183,10 +191,56 @@ def _train_and_predict(
 
 
 class PredictionService:
-    """股价预测服务 (单例)。"""
+    """股价预测服务 (单例)。
+
+    内置模型缓存: 以收盘价序列哈希作为缓存键，当日线数据未变更时
+    复用已训练模型，避免重复训练。
+    """
 
     def __init__(self) -> None:
         self._executor = ProcessPoolExecutor(max_workers=1)
+        # 模型缓存: {stock_code: {"hash": str, "result": dict}}
+        self._model_cache: Dict[str, Dict[str, Any]] = {}
+
+    def _get_cached(self, code: str, data_hash: str) -> Optional[Dict[str, Any]]:
+        """检查缓存是否命中。
+
+        Args:
+            code: 股票代码
+            data_hash: 收盘价序列哈希
+
+        Returns:
+            缓存结果或 None
+        """
+        entry = self._model_cache.get(code)
+        if entry and entry.get("hash") == data_hash:
+            logger.info("模型缓存命中: %s (hash=%s)", code, data_hash)
+            return entry["result"]
+        return None
+
+    def _set_cache(self, code: str, data_hash: str, result: Dict[str, Any]) -> None:
+        """写入缓存。
+
+        Args:
+            code: 股票代码
+            data_hash: 收盘价序列哈希
+            result: 预测结果
+        """
+        self._model_cache[code] = {"hash": data_hash, "result": result.copy()}
+        logger.info("模型缓存写入: %s (hash=%s)", code, data_hash)
+
+    def invalidate_cache(self, code: Optional[str] = None) -> None:
+        """清除指定股票或全部缓存。
+
+        Args:
+            code: 股票代码，为 None 时清除全部缓存
+        """
+        if code:
+            self._model_cache.pop(code, None)
+            logger.info("模型缓存清除: %s", code)
+        else:
+            self._model_cache.clear()
+            logger.info("模型缓存全部清除")
 
     async def predict(
         self,
@@ -198,6 +252,8 @@ class PredictionService:
         days: int = 7,
     ) -> Dict[str, Any]:
         """异步预测未来 N 日价格。
+
+        内置模型缓存: 若收盘价序列未变更则复用已训练模型。
 
         Args:
             code: 股票代码
@@ -213,6 +269,14 @@ class PredictionService:
         if len(closes) < 30:
             return {"error": "历史数据不足，需要至少 30 个交易日"}
 
+        # 检查模型缓存
+        data_hash = _make_data_hash(closes)
+        cached = self._get_cached(code, data_hash)
+        if cached is not None:
+            cached_result = cached.copy()
+            cached_result["cache_hit"] = True
+            return cached_result
+
         loop = asyncio.get_running_loop()
         try:
             result = await loop.run_in_executor(
@@ -225,6 +289,9 @@ class PredictionService:
                 days,
             )
             result["stock_code"] = code
+            result["cache_hit"] = False
+            # 写入缓存
+            self._set_cache(code, data_hash, result)
             return result
         except Exception as e:
             logger.exception("预测失败: %s", e)
