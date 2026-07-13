@@ -36,7 +36,7 @@ jobs:
         run: |
           git config user.name "Release Bot"
           git config user.email "release@github.com"
-          git tag -a "v${{ steps.ver.outputs.version }}" -m "Release v${{ steps.ver.outputs.version }}"
+          git tag -a "v${{ steps.ver.outputs.version }}" -m "v${{ steps.ver.outputs.version }}"
           git push origin "v${{ steps.ver.outputs.version }}"
 
       - name: Setup Node.js
@@ -45,17 +45,29 @@ jobs:
           node-version: 22
 
       - name: Build frontend
-        run: |
-          cd frontend && npm ci && npm run build
+        run: cd frontend && npm ci && npm run build
 
-      - name: Extract changelog
+      - name: Generate release body
         run: |
-          awk "/^## \[${{ steps.ver.outputs.version }}\]/,/^## \[/" CHANGELOG.md | tail -n +2 | head -n -1 > release-body.md
-          [ -s release-body.md ] || echo "v${{ steps.ver.outputs.version }}" > release-body.md
+          V="${{ steps.ver.outputs.version }}"
+          echo "# stock-monitor v${V}" > release.md
+          echo "" >> release.md
+          echo "## 快速开始" >> release.md
+          echo '```bash' >> release.md
+          echo "docker run -d -p 8000:8000 ghcr.io/${{ github.repository_owner }}/stock-monitor-backend:v${V}" >> release.md
+          echo "docker run -d -p 80:80 ghcr.io/${{ github.repository_owner }}/stock-monitor-frontend:v${V}" >> release.md
+          echo '```' >> release.md
+          echo "" >> release.md
+          echo "📖 完整使用说明见 [用户手册](https://github.com/${{ github.repository }}/blob/master/docs/USER_GUIDE.md)" >> release.md
+          echo "" >> release.md
+          echo "## 更新日志" >> release.md
+          grep -A 200 "^## \[${V}\]" CHANGELOG.md | sed '/^## \[0\./q' | head -n -1 >> release.md 2>/dev/null
+          verdict -s release.md && echo "Release body generated" || echo "Minimal body used"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: v${{ steps.ver.outputs.version }}
-          body_path: release-body.md
+          body_path: release.md
           generate_release_notes: true
+          files: frontend/dist/**/*
