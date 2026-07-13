@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import alerts, backtest, indices, indicators, predictions, stocks, watchlist, ws
+from app.api import alerts, auth, backtest, indices, indicators, predictions, stocks, watchlist, ws
 from app.database import init_db
 from app.init_data import init_app_data
 from app.services.scheduler import start_jobs, stop_jobs
@@ -51,3 +51,4 @@ app.include_router(alerts.router)
 app.include_router(backtest.router)
 app.include_router(predictions.router)
 app.include_router(ws.router)
+app.include_router(auth.router)
