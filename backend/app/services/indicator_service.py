@@ -11,7 +11,7 @@ from typing import Optional
 
 import pandas as pd
 import pandas_ta as ta
-from sqlalchemy import select, delete as sa_delete
+from sqlalchemy import select, delete as sa_delete, func
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from app.database import async_session
@@ -262,13 +262,130 @@ class IndicatorService:
         return vma.tolist()
 
     # ------------------------------------------------------------------
+    # 缓存查询
+    # ------------------------------------------------------------------
+
+    async def _get_cached_indicators(self, code: str) -> Optional[dict]:
+        """从 IndicatorCache 表读取已缓存的指标结果。
+
+        缓存有效性判断: 缓存行数与 daily_bars 行数一致则视为有效。
+        不一致说明有新数据到达，需要重新计算。
+        """
+        async with async_session() as db:
+            # 比较缓存行数与K线行数
+            bar_count_result = await db.execute(
+                select(func.count(DailyBar.id)).where(DailyBar.code == code)
+            )
+            bar_count = bar_count_result.scalar()
+            if not bar_count:
+                return None
+
+            cache_count_result = await db.execute(
+                select(func.count(IndicatorCache.id)).where(IndicatorCache.stock_code == code)
+            )
+            cache_count = cache_count_result.scalar()
+            if cache_count != bar_count:
+                return None
+
+            # 从缓存中读取并重建返回值
+            result = await db.execute(
+                select(IndicatorCache)
+                .where(IndicatorCache.stock_code == code)
+                .order_by(IndicatorCache.date)
+            )
+            rows = result.scalars().all()
+            if not rows:
+                return None
+
+            dates = [r.date for r in rows]
+            n = len(rows)
+
+            def _col(getter):
+                return [getter(r) for r in rows]
+
+            dif = _col(lambda r: r.macd_dif)
+            dea = _col(lambda r: r.macd_dea)
+            hist = _col(lambda r: r.macd_hist)
+            rsi_vals = _col(lambda r: r.rsi_14)
+            k_vals = _col(lambda r: r.kdj_k)
+            d_vals = _col(lambda r: r.kdj_d)
+            j_vals = _col(lambda r: r.kdj_j)
+            upper_vals = _col(lambda r: r.boll_upper)
+            middle_vals = _col(lambda r: r.boll_middle)
+            lower_vals = _col(lambda r: r.boll_lower)
+            sma5 = _col(lambda r: r.ma_5)
+            sma10 = _col(lambda r: r.ma_10)
+            sma20 = _col(lambda r: r.ma_20)
+            sma60 = _col(lambda r: r.ma_60)
+            vol_ma = _col(lambda r: r.volume_ma_20)
+
+            logger.info(f"指标缓存命中: {code}, {n} 行")
+
+            return {
+                "code": code,
+                "date": [d.isoformat() for d in dates],
+                "bars_count": n,
+                "cached": True,
+                "macd": {
+                    "dif": dif,
+                    "dea": dea,
+                    "histogram": hist,
+                    "cross_signal": self._detect_cross_from_lists(dif, dea),
+                    "latest": {"dif": dif[-1], "dea": dea[-1], "histogram": hist[-1]},
+                },
+                "rsi_14": {
+                    "value": rsi_vals,
+                    "latest": rsi_vals[-1],
+                    "signal": self._rsi_signal(rsi_vals[-1]),
+                },
+                "kdj": {
+                    "k": k_vals, "d": d_vals, "j": j_vals,
+                    "cross_signal": self._detect_cross_from_lists(k_vals, d_vals),
+                    "latest": {"k": k_vals[-1], "d": d_vals[-1], "j": j_vals[-1]},
+                },
+                "boll": {
+                    "upper": upper_vals, "middle": middle_vals, "lower": lower_vals,
+                    "signal": "price_in_band",
+                    "latest": {"upper": upper_vals[-1], "middle": middle_vals[-1], "lower": lower_vals[-1]},
+                },
+                "sma": {"sma_5": sma5, "sma_10": sma10, "sma_20": sma20, "sma_60": sma60},
+                "ema": {},
+                "volume_ma_20": vol_ma,
+            }
+
+    @staticmethod
+    def _detect_cross_from_lists(a: list, b: list) -> str:
+        """从列表中检测交叉信号。"""
+        if len(a) < 2 or len(b) < 2:
+            return "neutral"
+        a_prev, a_cur = a[-2], a[-1]
+        b_prev, b_cur = b[-2], b[-1]
+        if a_prev is None or a_cur is None or b_prev is None or b_cur is None:
+            return "neutral"
+        if a_prev <= b_prev and a_cur > b_cur:
+            return "golden_cross"
+        if a_prev >= b_prev and a_cur < b_cur:
+            return "dead_cross"
+        return "neutral"
+
+    @staticmethod
+    def _rsi_signal(val: Optional[float]) -> str:
+        if val is None:
+            return "neutral"
+        if val < 30:
+            return "oversold"
+        if val > 70:
+            return "overbought"
+        return "neutral"
+
+    # ------------------------------------------------------------------
     # 综合计算 (异步)
     # ------------------------------------------------------------------
 
-    async def calc_all_indicators(self, code: str) -> dict:
+    async def calc_all_indicators(self, code: str, force_refresh: bool = False) -> dict:
         """计算一只股票的全部技术指标。
 
-        流程: 1) 读 daily_bars → 2) 逐项计算 → 3) 写入 indicator_cache → 4) 返回汇总。
+        流程: 1) 检查缓存 → 2) 若未命中则读取 daily_bars → 3) 逐项计算 → 4) 写入 indicator_cache → 5) 返回汇总。
 
         Returns:
             {
@@ -284,7 +401,15 @@ class IndicatorService:
                 "volume_ma_20": [...],
             }
         """
-        # 1. 读取K线数据
+        # 1. 先查缓存
+        if not force_refresh:
+            cached = await self._get_cached_indicators(code)
+            if cached:
+                return cached
+
+        logger.info(f"指标缓存未命中: {code}，重新计算")
+
+        # 2. 读取K线数据
         async with async_session() as db:
             result = await db.execute(
                 select(DailyBar).where(DailyBar.code == code).order_by(DailyBar.date)
@@ -294,14 +419,14 @@ class IndicatorService:
         if not bars:
             return {"code": code, "date": [], "bars_count": 0}
 
-        # 2. 构造 DataFrame
+        # 3. 构造 DataFrame
         dates = [b.date for b in bars]
         close = pd.Series([b.close for b in bars], index=dates)
         high = pd.Series([b.high for b in bars], index=dates)
         low = pd.Series([b.low for b in bars], index=dates)
         volume = pd.Series([b.volume or 0 for b in bars], index=dates)
 
-        # 3. 在线程池中并行计算（四个指标可以一起算）
+        # 4. 在线程池中并行计算（四个指标可以一起算）
         macd_fut = self._run_in_executor(self.calc_macd, close)
         rsi_fut = self._run_in_executor(self.calc_rsi, close, 14)
         kdj_fut = self._run_in_executor(self.calc_kdj, high, low, close, 9)
@@ -314,13 +439,14 @@ class IndicatorService:
             macd_fut, rsi_fut, kdj_fut, boll_fut, sma_fut, ema_fut, vol_fut
         )
 
-        # 4. 写入缓存
+        # 5. 写入缓存
         await self._cache_indicators(code, bars, macd_r, rsi_r, kdj_r, boll_r, sma_r, vol_r)
 
         return {
             "code": code,
             "date": [d.isoformat() for d in dates],
             "bars_count": len(bars),
+            "cached": False,
             "macd": macd_r,
             "rsi_14": rsi_r,
             "kdj": kdj_r,

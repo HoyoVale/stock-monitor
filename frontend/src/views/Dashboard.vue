@@ -1,6 +1,10 @@
 <template>
   <div>
-    <h2 style="color: #e6edf3; margin-bottom: 20px; font-size: 18px;">大盘指数</h2>
+    <h2 style="color: #e6edf3; margin-bottom: 20px; font-size: 18px;">
+      大盘指数
+      <span v-if="stockStore.isTrading" style="color: #e74c3c; font-size: 13px; margin-left: 10px;">● 交易中</span>
+      <span v-else style="color: #8b949e; font-size: 13px; margin-left: 10px;">○ 已收盘</span>
+    </h2>
     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
       <MarketCard
         v-for="idx in stockStore.indices" :key="idx.code"
@@ -37,7 +41,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { NCard } from 'naive-ui'
 import MarketCard from '../components/MarketCard.vue'
 import KLineChart from '../components/KLineChart.vue'
@@ -60,7 +64,13 @@ function handlePeriodChange(val: string) {
 }
 
 onMounted(async () => {
+  await stockStore.checkMarketStatus()
   await stockStore.loadIndices()
   await stockStore.loadIndexBars('000001')
+  stockStore.startPolling()
+})
+
+onUnmounted(() => {
+  stockStore.stopPolling()
 })
 </script>
