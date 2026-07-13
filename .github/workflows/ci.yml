@@ -48,6 +48,14 @@ jobs:
         with:
           name: coverage-py
           path: backend/coverage.xml
+      - name: Report failure
+        if: failure()
+        run: |
+          mkdir -p .github/failure-reports
+          echo "CI backend-test failed on $(date -u)" > .github/failure-reports/ci-backend.md
+          echo "Python: ${{ matrix.python-version }}" >> .github/failure-reports/ci-backend.md
+          echo "Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> .github/failure-reports/ci-backend.md
+          git add .github/failure-reports/ && git commit -m "ci: backend failure report" && git push origin "${{ github.ref_name }}" || true
 
   frontend-test:
     runs-on: ubuntu-latest
@@ -72,3 +80,11 @@ jobs:
         run: cd frontend && npx vue-tsc -b --noEmit
       - name: Build
         run: cd frontend && npm run build
+      - name: Report failure
+        if: failure()
+        run: |
+          mkdir -p .github/failure-reports
+          echo "CI frontend-test failed on $(date -u)" > .github/failure-reports/ci-frontend.md
+          echo "Node: ${{ matrix.node-version }}" >> .github/failure-reports/ci-frontend.md
+          echo "Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> .github/failure-reports/ci-frontend.md
+          git add .github/failure-reports/ && git commit -m "ci: frontend failure report" && git push origin "${{ github.ref_name }}" || true
