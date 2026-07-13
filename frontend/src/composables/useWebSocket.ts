@@ -13,7 +13,13 @@ export interface WebSocketOptions {
   onQuoteUpdate?: (data: any[]) => void
   /** Callback when index data is received */
   onIndexUpdate?: (data: any[]) => void
+  /** Callback when connection count changes */
+  onConnCount?: (count: number) => void
+  /** Callback when WebSocket status changes */
+  onStatusChange?: (status: ConnectionStatus) => void
 }
+
+const TOKEN_KEY = 'stock-monitor-token'
 
 export function useWebSocket(options: WebSocketOptions = {}) {
   const {
@@ -22,55 +28,68 @@ export function useWebSocket(options: WebSocketOptions = {}) {
     maxReconnect = 10,
     onQuoteUpdate,
     onIndexUpdate,
+    onConnCount,
+    onStatusChange,
   } = options
 
   const status: Ref<ConnectionStatus> = ref('disconnected')
   const lastMessage = ref<any>(null)
   const error = ref<string | null>(null)
+  const connCount = ref(0)
 
   let ws: WebSocket | null = null
   let reconnectCount = 0
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null
+  let _statusTimer: ReturnType<typeof setInterval> | null = null
 
-  const wsUrl = (() => {
+  function _buildUrl(newCodes?: string[]): string {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
     const host = window.location.host
-    const codeParam = codes.length > 0 ? `?codes=${codes.join(',')}` : ''
-    return `${protocol}//${host}/ws/quotes${codeParam}`
-  })()
+    const codeList = newCodes || codes
+    const codeParam = codeList.length > 0 ? `&codes=${codeList.join(',')}` : ''
+    // Pass JWT token as query param for authentication
+    const token = localStorage.getItem(TOKEN_KEY)
+    const tokenParam = token ? `token=${encodeURIComponent(token)}` : ''
+    return `${protocol}//${host}/ws/quotes?${tokenParam}${codeParam}`
+  }
+
+  function _setStatus(newStatus: ConnectionStatus) {
+    status.value = newStatus
+    onStatusChange?.(newStatus)
+  }
 
   function connect(newCodes?: string[]) {
     if (ws?.readyState === WebSocket.OPEN || ws?.readyState === WebSocket.CONNECTING) {
       return
     }
 
+    // Check if we have a token
+    const token = localStorage.getItem(TOKEN_KEY)
+    if (!token) {
+      _setStatus('disconnected')
+      error.value = 'No auth token available'
+      return
+    }
+
     if (reconnectCount > 0 && reconnectCount <= (maxReconnect || Infinity)) {
-      status.value = 'reconnecting'
+      _setStatus('reconnecting')
     } else {
-      status.value = 'connecting'
+      _setStatus('connecting')
     }
     error.value = null
 
     try {
-      const url = newCodes
-        ? (() => {
-            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-            const host = window.location.host
-            return `${protocol}//${host}/ws/quotes?codes=${newCodes.join(',')}`
-          })()
-        : wsUrl
-
-      ws = new WebSocket(url)
+      ws = new WebSocket(_buildUrl(newCodes))
     } catch (e) {
-      status.value = 'disconnected'
+      _setStatus('disconnected')
       error.value = `WebSocket connection failed: ${e}`
       scheduleReconnect()
       return
     }
 
     ws.onopen = () => {
-      status.value = 'connected'
+      _setStatus('connected')
       reconnectCount = 0
       startHeartbeat()
     }
@@ -87,14 +106,22 @@ export function useWebSocket(options: WebSocketOptions = {}) {
           case 'index_update':
             onIndexUpdate?.(msg.data)
             break
+          case 'conn_count':
+            connCount.value = msg.count
+            onConnCount?.(msg.count)
+            break
           case 'connected':
           case 'subscribed':
           case 'pong':
           case 'heartbeat':
-            // System messages, no action needed
             break
           case 'error':
             error.value = msg.message
+            // Auth error (4008) → clear token, don't reconnect
+            if (msg.code === 4008) {
+              localStorage.removeItem(TOKEN_KEY)
+              disconnect()
+            }
             break
         }
       } catch {
@@ -103,16 +130,19 @@ export function useWebSocket(options: WebSocketOptions = {}) {
     }
 
     ws.onclose = (event) => {
-      status.value = 'disconnected'
+      _setStatus('disconnected')
       stopHeartbeat()
-      // Don't reconnect on normal closure or if max reconnects reached
+      // Auth errors (4008) -> don't reconnect
+      if (event.code === 4008) {
+        return
+      }
+      // Max connections (4009) -> try reconnect with backoff
       if (event.code !== 1000 && event.code !== 1001) {
         scheduleReconnect()
       }
     }
 
     ws.onerror = () => {
-      // onclose will fire after onerror
       error.value = 'WebSocket connection error'
     }
   }
@@ -123,16 +153,20 @@ export function useWebSocket(options: WebSocketOptions = {}) {
       reconnectTimer = null
     }
     stopHeartbeat()
+    if (_statusTimer) {
+      clearInterval(_statusTimer)
+      _statusTimer = null
+    }
     if (ws) {
       ws.close(1000)
       ws = null
     }
-    status.value = 'disconnected'
+    _setStatus('disconnected')
   }
 
   function scheduleReconnect() {
     if (maxReconnect && reconnectCount >= maxReconnect) {
-      status.value = 'disconnected'
+      _setStatus('disconnected')
       return
     }
     reconnectCount++
@@ -171,6 +205,7 @@ export function useWebSocket(options: WebSocketOptions = {}) {
     status,
     lastMessage,
     error,
+    connCount,
     connect,
     disconnect,
     updateSubscription,
