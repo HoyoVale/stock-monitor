@@ -15,3 +15,13 @@ INDEX_CODES: dict[str, str] = {
     "chi_next": "399006",
     "kcb": "000688",
 }
+
+# 通知配置
+SMTP_HOST: str = os.getenv("SMTP_HOST", "")
+SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER: str = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
+SMTP_FROM: str = os.getenv("SMTP_FROM", SMTP_USER)
+ALERT_EMAIL_TO: str = os.getenv("ALERT_EMAIL_TO", "")
+WECHAT_WEBHOOK_URL: str = os.getenv("WECHAT_WEBHOOK_URL", "")
+DINGTALK_WEBHOOK_URL: str = os.getenv("DINGTALK_WEBHOOK_URL", "")

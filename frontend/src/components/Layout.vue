@@ -10,6 +10,12 @@
           <span>上证 <b :style="{ color: indices[0]?.change >= 0 ? '#e74c3c' : '#2ecc71' }">{{ indices[0]?.price?.toFixed(0) }} {{ indices[0]?.change >= 0 ? '▲' : '▼' }}</b></span>
           <span style="margin-left: 12px;">深证 <b :style="{ color: indices[1]?.change >= 0 ? '#e74c3c' : '#2ecc71' }">{{ indices[1]?.price?.toFixed(0) }} {{ indices[1]?.change >= 0 ? '▲' : '▼' }}</b></span>
         </span>
+        <!-- Alert bell -->
+        <n-badge :value="alertStore.unreadCount" :max="99" :show="alertStore.unreadCount > 0">
+          <n-button quaternary circle size="small" @click="handleBellClick" style="color: #f0b90b;">
+            <template #icon><n-icon :size="20"><NotificationsOutline /></n-icon></template>
+          </n-button>
+        </n-badge>
         <span style="color: #8b949e;">{{ now }}</span>
       </div>
     </n-layout-header>
@@ -37,14 +43,17 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NLayout, NLayoutHeader, NLayoutSider, NLayoutContent, NLayoutFooter, NMenu } from 'naive-ui'
+import { NLayout, NLayoutHeader, NLayoutSider, NLayoutContent, NLayoutFooter, NMenu, NButton, NBadge, NIcon } from 'naive-ui'
+import { NotificationsOutline } from '@vicons/ionicons5'
 import type { MenuOption } from 'naive-ui'
 import { useStockStore } from '../stores/stock'
+import { useAlertStore } from '../stores/alerts'
 import StockSearch from './StockSearch.vue'
 
 const route = useRoute()
 const router = useRouter()
 const stockStore = useStockStore()
+const alertStore = useAlertStore()
 
 const now = ref(new Date().toLocaleTimeString('zh-CN'))
 setInterval(() => { now.value = new Date().toLocaleTimeString('zh-CN') }, 1000)
@@ -55,13 +64,24 @@ const activeKey = computed(() => route.name as string || 'dashboard')
 const menuOptions: MenuOption[] = [
   { label: '📊 大盘', key: 'dashboard' },
   { label: '⭐ 自选股', key: 'watchlist' },
+  { label: '🔔 预警', key: 'alerts' },
 ]
 
 function handleMenuSelect(key: string) {
   router.push({ name: key })
 }
 
+function handleBellClick() {
+  router.push({ name: 'alerts' })
+}
+
+// 定时检查未读预警数
+setInterval(() => {
+  alertStore.checkUnread()
+}, 30000)
+
 onMounted(() => {
   stockStore.loadIndices()
+  alertStore.checkUnread()
 })
 </script>

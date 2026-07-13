@@ -1,7 +1,7 @@
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, delete as sa_delete, desc
+from sqlalchemy import select, func, delete as sa_delete, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -73,3 +73,18 @@ async def list_alert_records(
         select(AlertRecord).order_by(AlertRecord.triggered_at.desc()).limit(limit)
     )
     return [AlertRecordResponse.model_validate(r) for r in result.scalars().all()]
+
+
+@router.get("/unread-count")
+async def get_unread_count(
+    since: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """返回最近 24 小时内触发的新预警记录数（供前端铃铛徽标使用）。"""
+    from datetime import datetime, timedelta
+    since_dt = datetime.fromisoformat(since) if since else datetime.now() - timedelta(hours=24)
+    result = await db.execute(
+        select(func.count(AlertRecord.id)).where(AlertRecord.triggered_at >= since_dt)
+    )
+    count = result.scalar() or 0
+    return {"count": count}

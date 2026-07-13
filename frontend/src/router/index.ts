@@ -19,6 +19,12 @@ const routes = [
     component: () => import('../views/StockDetail.vue'),
     meta: { title: '个股详情' },
   },
+  {
+    path: '/alerts',
+    name: 'alerts',
+    component: () => import('../views/Alerts.vue'),
+    meta: { title: '价格预警' },
+  },
 ]
 
 export default createRouter({

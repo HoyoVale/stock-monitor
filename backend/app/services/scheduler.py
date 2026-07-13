@@ -40,6 +40,7 @@ async def check_alerts_job():
     from app.database import async_session
     from app.models.alert import AlertRule, AlertRecord
     from app.services.stock_service import stock_service
+    from app.services.notification_service import notification_service
 
     async with async_session() as db:
         result = await db.execute(
@@ -76,6 +77,15 @@ async def check_alerts_job():
                 )
                 db.add(record)
                 rule.enabled = False
+
+                # 发送通知
+                await notification_service.notify_alert(
+                    stock_code=rule.stock_code,
+                    stock_name=quote.get("name", ""),
+                    alert_type=rule.alert_type,
+                    threshold=rule.threshold,
+                    current_price=quote["price"],
+                )
 
         await db.commit()
 
