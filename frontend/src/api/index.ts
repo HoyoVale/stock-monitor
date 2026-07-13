@@ -10,6 +10,22 @@ export interface MarketStatus {
   server_time: string
 }
 
+export interface BacktestResult {
+  stock_code: string
+  start_date: string
+  end_date: string
+  total_return: number
+  annualized_return: number
+  win_rate: number
+  max_drawdown: number
+  sharpe_ratio: number
+  total_trades: number
+  winning_trades: number
+  losing_trades: number
+  equity_curve: { date: string; value: number }[]
+  daily_signals: { date: string; score: number; action: string; price: number }[]
+}
+
 export async function fetchIndices(): Promise<IndexData[]> {
   return cachedRequest(
     () => http.get('/indices').then(({ data }) => data),
@@ -103,4 +119,15 @@ export async function fetchAlertRecords(limit = 50): Promise<AlertRecord[]> {
 
 export async function fetchUnreadAlertCount(): Promise<number> {
   return http.get('/alerts/unread-count').then(({ data }) => data.count)
+}
+
+// Backtest API
+
+export async function runBacktest(params: {
+  stock_code: string
+  start_date: string
+  end_date: string
+  threshold?: number
+}): Promise<BacktestResult> {
+  return http.post('/backtest', params).then(({ data }) => data)
 }

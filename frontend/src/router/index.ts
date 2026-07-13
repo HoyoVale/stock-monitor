@@ -25,6 +25,12 @@ const routes = [
     component: () => import('../views/Alerts.vue'),
     meta: { title: '价格预警' },
   },
+  {
+    path: '/backtest',
+    name: 'backtest',
+    component: () => import('../views/Backtest.vue'),
+    meta: { title: '历史回测' },
+  },
 ]
 
 export default createRouter({
