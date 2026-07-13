@@ -6,10 +6,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import alerts, auth, backtest, indices, indicators, predictions, stocks, watchlist, ws
+from app.api import alerts, auth, backtest, health, indices, indicators, predictions, stocks, watchlist, ws
 from app.database import init_db
 from app.init_data import init_app_data
+from app.logging_config import configure_logging
+from app.middleware import RequestLoggingMiddleware
 from app.services.scheduler import start_jobs, stop_jobs
+
+configure_logging()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -28,6 +32,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="股市监控系统", version="0.3.0", lifespan=lifespan)
 
+app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,13 +41,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-@app.get("/api/health")
-async def health_check():
-    """Health check endpoint for Docker/container orchestration."""
-    return {"status": "ok", "service": "stock-monitor-backend"}
-
-
+app.include_router(health.router)
 app.include_router(indices.router)
 app.include_router(stocks.router)
 app.include_router(watchlist.router)
