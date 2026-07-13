@@ -11,9 +11,11 @@ export const useStockStore = defineStore('stock', () => {
   const isTrading = ref(false)
   const pollingInterval = ref(5000)
   const wsStatus = ref<ConnectionStatus>('disconnected')
+  const wsConnCount = ref(0)
+  const useHttpPolling = ref(false)  // Fallback when WS is disconnected
+
   let _pollTimer: ReturnType<typeof setInterval> | null = null
   let _ws: ReturnType<typeof useWebSocket> | null = null
-  let _usePolling = ref(false)
 
   async function loadIndices() {
     loading.value = true
@@ -38,10 +40,22 @@ export const useStockStore = defineStore('stock', () => {
     }
   }
 
+  function _onStatusChange(newStatus: ConnectionStatus) {
+    wsStatus.value = newStatus
+    // Toggle HTTP polling based on WS connection state
+    if (newStatus === 'connected') {
+      useHttpPolling.value = false
+    } else if (newStatus === 'disconnected') {
+      useHttpPolling.value = true
+    }
+  }
+
   function startPolling() {
     stopPolling()
     _pollTimer = setInterval(async () => {
-      await loadIndices()
+      if (useHttpPolling.value || wsStatus.value !== 'connected') {
+        await loadIndices()
+      }
       await checkMarketStatus()
     }, pollingInterval.value)
   }
@@ -56,7 +70,7 @@ export const useStockStore = defineStore('stock', () => {
   function startWebSocket(codes: string[] = []) {
     _ws = useWebSocket({
       codes,
-      onQuoteUpdate(data) {
+      onQuoteUpdate(_data) {
         // Quote updates come from WebSocket
       },
       onIndexUpdate(data) {
@@ -68,15 +82,22 @@ export const useStockStore = defineStore('stock', () => {
           change_pct: item.change_pct,
         }))
       },
+      onConnCount(count: number) {
+        wsConnCount.value = count
+      },
+      onStatusChange: _onStatusChange,
     })
-    _ws.connect()
+    // Initial status
     wsStatus.value = _ws.status.value
+    _ws.connect()
   }
 
   function stopWebSocket() {
     _ws?.disconnect()
     _ws = null
     wsStatus.value = 'disconnected'
+    wsConnCount.value = 0
+    useHttpPolling.value = true
   }
 
   return {
@@ -86,6 +107,8 @@ export const useStockStore = defineStore('stock', () => {
     isTrading,
     pollingInterval,
     wsStatus,
+    wsConnCount,
+    useHttpPolling,
     loadIndices,
     loadIndexBars,
     checkMarketStatus,
