@@ -1,10 +1,12 @@
 """Tests for the multi-datasource abstraction layer."""
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
+import asyncio
 
-from backend.app.services.datasource.base import BaseDataSource
-from backend.app.services.datasource.akshare_source import AkshareDataSource
-from backend.app.services.datasource.eastmoney_source import EastmoneyDataSource
+import pytest
+from unittest.mock import AsyncMock, patch
+
+from app.services.datasource.base import BaseDataSource
+from app.services.datasource.akshare_source import AkshareDataSource
+from app.services.datasource.eastmoney_source import EastmoneyDataSource
 
 
 class TestBaseDataSource:
@@ -15,31 +17,58 @@ class TestBaseDataSource:
         with pytest.raises(TypeError):
             BaseDataSource()
 
+
+class TestAkshareDataSource:
+    """Test the Akshare data source implementation."""
+
+    def test_name(self):
+        source = AkshareDataSource()
+        assert source.name == "akshare"
+
+    def test_default_values(self):
+        source = AkshareDataSource()
+        assert source._available is True
+        assert source._failure_count == 0
+        assert source._max_failures == 3
+        assert source._backup is None
+
     def test_mark_failure_and_recovery(self):
         """Test failure counting and recovery."""
-        # Use a concrete subclass for testing
         source = AkshareDataSource()
         source._max_failures = 2
 
         assert source._failure_count == 0
+        assert source._available is True
 
+        # One failure shouldn't disable
         source._mark_failure()
         assert source._failure_count == 1
         assert source._available is True
 
+        # Second failure should disable
         source._mark_failure()
         assert source._failure_count == 2
         assert source._available is False
 
+        # Recovery should reset
         source._mark_success()
         assert source._failure_count == 0
         assert source._available is True
 
     @pytest.mark.asyncio
+    async def test_health_check_no_akshare(self, monkeypatch):
+        """Health check returns False when akshare is disabled."""
+        monkeypatch.setattr("app.services.datasource.akshare_source.AKSHARE_ENABLE", False)
+        source = AkshareDataSource()
+        result = await source.health_check()
+        assert result is False
+
+    @pytest.mark.asyncio
     async def test_fallback_to_backup_on_failure(self):
         """Test that a primary source failure triggers fallback."""
         primary = AkshareDataSource()
-        backup = EastmoneyDataSource()
+        backup = AkshareDataSource()
+        backup.name = "eastmoney"
 
         # Make primary always fail
         async def mock_fail(*args, **kwargs):
@@ -62,7 +91,9 @@ class TestBaseDataSource:
     async def test_fallback_both_fail(self):
         """Test that RuntimeError is raised when both sources fail."""
         primary = AkshareDataSource()
-        backup = EastmoneyDataSource()
+        primary.name = "akshare"
+        backup = AkshareDataSource()
+        backup.name = "eastmoney"
 
         async def mock_fail(*args, **kwargs):
             raise RuntimeError("Primary down")
@@ -77,27 +108,6 @@ class TestBaseDataSource:
 
         with pytest.raises(RuntimeError, match="Both primary.*backup.*sources failed"):
             await primary._try_with_fallback("get_realtime_quotes")
-
-
-class TestAkshareDataSource:
-    """Test the Akshare data source implementation."""
-
-    def test_name(self):
-        source = AkshareDataSource()
-        assert source.name == "akshare"
-
-    def test_health_check_no_akshare(self):
-        """Health check returns False when akshare is disabled."""
-        with patch("backend.app.services.datasource.akshare_source.AKSHARE_ENABLE", False):
-            source = AkshareDataSource()
-            result = asyncio.run_coroutine(source.health_check())
-            assert result is False
-
-    def test_default_values(self):
-        source = AkshareDataSource()
-        assert source._available is True
-        assert source._failure_count == 0
-        assert source._backup is None
 
 
 class TestEastmoneyDataSource:
@@ -120,13 +130,16 @@ class TestEastmoneyDataSource:
     async def test_resolve_market_shanghai(self):
         source = EastmoneyDataSource()
         assert await source._resolve_market("600000") == "1"
+
+    @pytest.mark.asyncio
+    async def test_resolve_market_shenzhen(self):
+        source = EastmoneyDataSource()
         assert await source._resolve_market("000001") == "0"
         assert await source._resolve_market("300750") == "0"
 
     @pytest.mark.asyncio
     async def test_parse_kline_response(self):
         source = EastmoneyDataSource()
-        # Test with valid kline data parsing
         mock_resp = {
             "data": {
                 "klines": [
@@ -156,6 +169,3 @@ class TestEastmoneyDataSource:
         source._client = AsyncMock()
         await source.close()
         assert source._client is None
-
-
-import asyncio

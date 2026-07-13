@@ -4,8 +4,8 @@ from typing import Optional
 
 import pandas as pd
 
-from backend.app.config import AKSHARE_ENABLE
-from backend.app.services.datasource.base import BaseDataSource
+from app.config import AKSHARE_ENABLE
+from app.services.datasource.base import BaseDataSource
 
 
 class AkshareDataSource(BaseDataSource):
@@ -109,7 +109,7 @@ class AkshareDataSource(BaseDataSource):
     async def refresh_stock_list(self, db) -> None:
         import akshare as ak
         from sqlalchemy import select
-        from backend.app.models.stock import Stock
+        from app.models.stock import Stock
 
         df = await self._run_sync(ak.stock_info_a_code_name)
         if df.empty:
@@ -118,7 +118,7 @@ class AkshareDataSource(BaseDataSource):
             existing = await db.execute(
                 select(Stock).where(Stock.code == str(row["code"]))
             )
-            if not existing.scalars().first():
+            if not existing.scalar_one_or_none():
                 db.add(Stock(code=str(row["code"]), name=str(row["name"])))
         await db.commit()
 
@@ -126,7 +126,7 @@ class AkshareDataSource(BaseDataSource):
         if not AKSHARE_ENABLE:
             return False
         try:
-            import akshare
+            import akshare  # noqa: F401
             return True
         except ImportError:
             return False
