@@ -44,7 +44,7 @@ jobs:
         run: |
           cd backend && pytest tests/ -v --tb=short
 
-  frontend-build:
+  frontend-test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -62,6 +62,9 @@ jobs:
 
       - name: Install dependencies
         run: cd frontend && npm ci
+
+      - name: Run unit tests
+        run: cd frontend && npm test
 
       - name: Type check
         run: cd frontend && npx vue-tsc -b --noEmit
