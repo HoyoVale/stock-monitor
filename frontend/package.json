@@ -14,7 +14,7 @@
     "pinia": "^2.1.7",
     "naive-ui": "^2.38.0",
     "echarts": "^5.5.0",
-    "vue-echarts": "^7.0.0",
+    "vue-echarts": "^8.0.1",
     "axios": "^1.7.2",
     "@vicons/ionicons5": "^0.12.0"
   },
