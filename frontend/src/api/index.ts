@@ -1,36 +1,53 @@
 import axios from 'axios'
 import type { IndexData, QuoteData, BarData, StockInfo, WatchlistItem } from '../types/stock'
+import { cachedRequest } from './cache'
 
 const http = axios.create({ baseURL: '/api' })
 
+export interface MarketStatus {
+  is_trading: boolean
+  recommended_interval: number
+  server_time: string
+}
+
 export async function fetchIndices(): Promise<IndexData[]> {
-  const { data } = await http.get('/indices')
-  return data
+  return cachedRequest(
+    () => http.get('/indices').then(({ data }) => data),
+    'indices',
+    5000,
+  )
 }
 
 export async function fetchIndexBars(code: string, period = '1y'): Promise<BarData[]> {
-  const { data } = await http.get(`/indices/${code}/bars`, { params: { period } })
-  return data
+  return cachedRequest(
+    () => http.get(`/indices/${code}/bars`, { params: { period } }).then(({ data }) => data),
+    `index-bars:${code}:${period}`,
+    60000,
+  )
 }
 
 export async function fetchStocks(search?: string): Promise<StockInfo[]> {
-  const { data } = await http.get('/stocks', { params: { search } })
-  return data
+  return http.get('/stocks', { params: { search } }).then(({ data }) => data)
 }
 
 export async function fetchStockQuote(code: string): Promise<QuoteData> {
-  const { data } = await http.get(`/stocks/${code}/quotes`)
-  return data
+  return cachedRequest(
+    () => http.get(`/stocks/${code}/quotes`).then(({ data }) => data),
+    `quote:${code}`,
+    5000,
+  )
 }
 
 export async function fetchStockBars(code: string, start?: string, end?: string): Promise<BarData[]> {
-  const { data } = await http.get(`/stocks/${code}/bars`, { params: { start, end } })
-  return data
+  return cachedRequest(
+    () => http.get(`/stocks/${code}/bars`, { params: { start, end } }).then(({ data }) => data),
+    `bars:${code}:${start || ''}:${end || ''}`,
+    60000,
+  )
 }
 
 export async function fetchWatchlist(): Promise<WatchlistItem[]> {
-  const { data } = await http.get('/watchlist')
-  return data
+  return http.get('/watchlist').then(({ data }) => data)
 }
 
 export async function addToWatchlist(code: string, name: string, group = '默认'): Promise<WatchlistItem> {
@@ -43,11 +60,21 @@ export async function removeFromWatchlist(id: number): Promise<void> {
 }
 
 export async function fetchIndicators(code: string): Promise<any> {
-  const { data } = await http.get(`/indicators/${code}`)
-  return data
+  return cachedRequest(
+    () => http.get(`/indicators/${code}`).then(({ data }) => data),
+    `indicators:${code}`,
+    300000, // 指标缓存 5 分钟
+  )
 }
 
 export async function fetchSuggestion(code: string, name?: string): Promise<any> {
-  const { data } = await http.get(`/suggestions/${code}`, { params: { name } })
-  return data
+  return http.get(`/suggestions/${code}`, { params: { name } }).then(({ data }) => data)
+}
+
+export async function fetchMarketStatus(): Promise<MarketStatus> {
+  return cachedRequest(
+    () => http.post('/indices/status').then(({ data }) => data),
+    'market-status',
+    15000,
+  )
 }

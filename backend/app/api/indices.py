@@ -1,3 +1,4 @@
+from datetime import datetime, time
 from typing import Optional
 
 from fastapi import APIRouter
@@ -13,6 +14,21 @@ INDEX_NAMES = {
     "399006": "创业板指",
     "000688": "科创50",
 }
+
+
+def _is_trading_time() -> bool:
+    """判断当前是否为 A 股交易时间。"""
+    now = datetime.now()
+    if now.weekday() >= 5:
+        return False
+    try:
+        from chinese_calendar import is_workday
+        if not is_workday(now.date()):
+            return False
+    except ImportError:
+        pass
+    t = now.time()
+    return (time(9, 30) <= t <= time(11, 30)) or (time(13, 0) <= t <= time(15, 0))
 
 
 @router.get("")
@@ -33,6 +49,17 @@ async def get_indices():
         }
         for q in quotes
     ]
+
+
+@router.post("/status")
+async def get_market_status():
+    """返回市场状态，供前端自适应轮询使用。"""
+    trading = _is_trading_time()
+    return {
+        "is_trading": trading,
+        "recommended_interval": 5 if trading else 60,
+        "server_time": datetime.now().isoformat(),
+    }
 
 
 @router.get("/{code}/bars")
