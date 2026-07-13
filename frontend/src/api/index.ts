@@ -4,6 +4,8 @@ import { cachedRequest } from './cache'
 
 const http = axios.create({ baseURL: '/api' })
 
+export { http }
+
 export interface MarketStatus {
   is_trading: boolean
   recommended_interval: number
@@ -24,6 +26,20 @@ export interface BacktestResult {
   losing_trades: number
   equity_curve: { date: string; value: number }[]
   daily_signals: { date: string; score: number; action: string; price: number }[]
+}
+
+export interface PredictionResult {
+  stock_code: string
+  last_price: number
+  trend: string
+  predictions: { date: string; price: number; lower: number; upper: number }[]
+  metrics: {
+    rmse: number
+    mae: number
+    mape_pct: number
+    direction_accuracy_pct: number
+    training_samples: number
+  }
 }
 
 export async function fetchIndices(): Promise<IndexData[]> {
@@ -130,4 +146,10 @@ export async function runBacktest(params: {
   threshold?: number
 }): Promise<BacktestResult> {
   return http.post('/backtest', params).then(({ data }) => data)
+}
+
+// Prediction API
+
+export async function predictStock(code: string, days: number): Promise<PredictionResult> {
+  return http.post(`/predictions/${code}`, { days }).then(({ data }) => data)
 }
