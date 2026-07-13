@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - 'release/v*'
 
 jobs:
   release:
@@ -11,12 +13,33 @@ jobs:
     permissions:
       contents: write
       packages: write
-      discussions: write
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version
+        id: ver
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            V="${GITHUB_REF#refs/tags/v}"
+            echo "trigger=tag" >> $GITHUB_OUTPUT
+          else
+            V="${GITHUB_REF#refs/heads/release/v}"
+            echo "trigger=branch" >> $GITHUB_OUTPUT
+          fi
+          echo "version=$V" >> $GITHUB_OUTPUT
+          echo "Version: $V"
+
+      - name: Create git tag
+        if: steps.ver.outputs.trigger == 'branch'
+        run: |
+          git config user.name "Release Bot"
+          git config user.email "release@github.com"
+          git tag -a "v${{ steps.ver.outputs.version }}" -m "Release v${{ steps.ver.outputs.version }}"
+          git push origin "v${{ steps.ver.outputs.version }}"
 
       - name: Setup Node.js
         uses: actions/setup-node@1a047faa6befd5ef37cff5cd18bcc5f08f28d051
@@ -34,23 +57,15 @@ jobs:
       - name: Extract changelog
         id: changelog
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          # Extract the section for this version from CHANGELOG.md
-          awk "/^## \[${VERSION}\]/,/^## \[/" CHANGELOG.md | tail -n +2 | head -n -1 > release-body.md
-          echo "Release notes generated"
+          awk "/^## \[${{ steps.ver.outputs.version }}\]/,/^## \[/" CHANGELOG.md | tail -n +2 | head -n -1 > release-body.md
+          [ -s release-body.md ] || echo "v${{ steps.ver.outputs.version }} release" > release-body.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@c062c08b532815e1b8c5411926e6e3d56e3ab0e1
         with:
-          name: v${{ steps.changelog.outputs.version }}
+          name: v${{ steps.ver.outputs.version }}
           body_path: release-body.md
           prerelease: ${{ contains(github.ref, '-alpha') || contains(github.ref, '-beta') || contains(github.ref, '-rc') }}
           generate_release_notes: true
           files: |
             frontend/dist/**/*
-
-      - name: Create release discussion
-        uses: softprops/action-gh-release@c062c08b532815e1b8c5411926e6e3d56e3ab0e1
-        with:
-          discussion_category_name: Announcements
