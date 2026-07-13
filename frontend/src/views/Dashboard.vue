@@ -4,6 +4,7 @@
       大盘指数
       <span v-if="stockStore.isTrading" style="color: #e74c3c; font-size: 13px; margin-left: 10px;">● 交易中</span>
       <span v-else style="color: #8b949e; font-size: 13px; margin-left: 10px;">○ 已收盘</span>
+      <ConnectionStatus :status="stockStore.wsStatus" style="margin-left: 12px;" />
     </h2>
     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
       <MarketCard
@@ -45,6 +46,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { NCard } from 'naive-ui'
 import MarketCard from '../components/MarketCard.vue'
 import KLineChart from '../components/KLineChart.vue'
+import ConnectionStatus from '../components/ConnectionStatus.vue'
 import { useStockStore } from '../stores/stock'
 
 const stockStore = useStockStore()
@@ -67,10 +69,13 @@ onMounted(async () => {
   await stockStore.checkMarketStatus()
   await stockStore.loadIndices()
   await stockStore.loadIndexBars('000001')
+  // Start WebSocket for real-time updates; fallback to polling if WS fails
+  stockStore.startWebSocket([])
   stockStore.startPolling()
 })
 
 onUnmounted(() => {
   stockStore.stopPolling()
+  stockStore.stopWebSocket()
 })
 </script>
