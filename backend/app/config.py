@@ -9,6 +9,11 @@ TRADING_END_MORNING: str = "11:30"
 TRADING_START_AFTERNOON: str = "13:00"
 TRADING_END_AFTERNOON: str = "15:00"
 
+# 数据源配置
+DATA_SOURCE: str = os.getenv("DATA_SOURCE", "akshare")
+BACKUP_DATA_SOURCE: str = os.getenv("BACKUP_DATA_SOURCE", "eastmoney")
+DS_FAILURE_THRESHOLD: int = int(os.getenv("DS_FAILURE_THRESHOLD", "3"))
+
 INDEX_CODES: dict[str, str] = {
     "shanghai": "000001",
     "shenzhen": "399001",
