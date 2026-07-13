@@ -1,0 +1,35 @@
+name: Technical Debt
+about: 记录技术债，不立即修复
+labels: ["tech-debt"]
+body:
+  - type: textarea
+    attributes:
+      label: 描述
+      description: 什么代码有问题？为什么是技术债？
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: 类型
+      options:
+        - 代码复制 (DRY violation)
+        - 缺少测试
+        - 过时的依赖
+        - 性能瓶颈
+        - 安全风险
+        - 架构问题
+        - 其他
+  - type: textarea
+    attributes:
+      label: 建议的修复方案
+  - type: input
+    attributes:
+      label: 预计修复时间
+      placeholder: "2 小时 / 1 天"
+  - type: dropdown
+    attributes:
+      label: 优先级
+      options:
+        - "P3 — 低 (不影响功能)"
+        - "P2 — 中 (可能影响性能/可维护性)"
+        - "P1 — 高 (可能导致 bug)"
