@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-13
+
+### Added (Phase 4)
+- 多数据源抽象层: BaseDataSource + AkshareDataSource + EastmoneyDataSource
+  - 数据源故障自动 fallback (主→备切换)
+  - DATA_SOURCE / BACKUP_DATA_SOURCE / DS_FAILURE_THRESHOLD 环境变量配置
+  - 数据源健康检查 (datasource_health)
+- WebSocket 实时行情推送
+  - WebSocketManager 连接管理 + 后台广播循环
+  - /ws/quotes 端点: subscribe/ping/unsubscribe 协议
+  - useWebSocket composable: 自动重连(10次) + 心跳(25s) + 4种连接状态
+  - ConnectionStatus 组件: 实时/连接中/重连中/离线
+  - HTTP polling 降级支持
+- JWT 用户认证系统
+  - User 模型 + bcrypt 密码哈希
+  - POST /api/auth/register + /api/auth/login + /api/auth/refresh + GET /api/auth/me
+  - Login/Register 页面 + 表单验证
+  - 路由守卫: requiresAuth → 自动跳转登录
+  - Axios 拦截器: 自动注入 Bearer token + 401 自动登出
+
 ## [0.2.0] - 2026-07-13
 
 ### Added

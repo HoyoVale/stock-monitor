@@ -12,6 +12,9 @@
 - **价格预警** — 自定义价格阈值，触发邮件/Webhook 通知
 - **历史回测** — 滚动窗口回测，收益率/胜率/最大回撤/夏普比率
 - **性能优化** — 指标缓存、API 去重、组件懒加载、自适应轮询
+- **多数据源** — akshare + 东方财富双数据源，故障自动切换
+- **WebSocket 实时推送** — 行情实时推送，断线自动重连 + HTTP 降级
+- **用户认证** — JWT 登录/注册，路由守卫
 
 ## 技术架构
 
@@ -19,10 +22,12 @@
 stock-monitor/
 ├── backend/                  # FastAPI 后端 (Python)
 │   ├── app/
-│   │   ├── api/              # REST API 路由 (indices/stocks/watchlist/alerts/indicators/backtest)
+│   │   ├── api/              # REST API 路由 + WebSocket
 │   │   ├── models/           # SQLAlchemy ORM 模型
 │   │   ├── schemas/          # Pydantic 数据校验
-│   │   ├── services/         # 业务逻辑层 (stock/indicator/suggestion/notification/backtest)
+│   │   ├── services/         # 业务逻辑 + 数据源抽象层
+│   │   ├── websocket/        # WebSocket 连接管理
+│   │   ├── auth.py           # JWT 认证工具
 │   │   ├── config.py         # 配置管理
 │   │   ├── database.py       # 数据库连接 (SQLite + aiosqlite)
 │   │   └── main.py           # FastAPI 应用入口
@@ -34,12 +39,13 @@ stock-monitor/
 │   └── pytest.ini
 ├── frontend/                 # Vue 3 前端 (TypeScript)
 │   ├── src/
-│   │   ├── views/            # 页面视图 (Dashboard/StockDetail/Watchlist/Alerts/Backtest)
-│   │   ├── components/       # UI 组件 (MarketCard/KLineChart/IndicatorPanel/DecisionCard/StockSearch/StockTable/Layout)
+│   │   ├── views/            # 页面视图
+│   │   ├── components/       # UI 组件
+│   │   ├── composables/      # 组合式函数 (useWebSocket)
 │   │   ├── api/              # API 客户端 (axios + 缓存)
-│   │   ├── stores/           # Pinia 状态管理
+│   │   ├── stores/           # Pinia 状态管理 (含认证)
 │   │   ├── types/            # TypeScript 类型定义
-│   │   └── router/           # Vue Router (懒加载)
+│   │   └── router/           # Vue Router (懒加载 + 路由守卫)
 │   ├── package.json
 │   └── vite.config.ts
 ├── .github/                  # CI/CD 工作流 + 模板
@@ -91,6 +97,10 @@ cd frontend && npm test  # 前端 vitest
 | GET | `/api/indicators/{code}` | 技术指标 (MACD/RSI/KDJ/BOLL/MA) |
 | GET | `/api/suggestions/{code}` | 决策建议 (0-100 评分) |
 | POST | `/api/backtest` | 历史回测 |
+| POST | `/api/auth/register` | 用户注册 |
+| POST | `/api/auth/login` | 用户登录 (JWT) |
+| GET | `/api/auth/me` | 当前用户信息 |
+| WS | `/ws/quotes?codes=` | WebSocket 实时行情 |
 
 ## 决策引擎评分模型
 
@@ -109,7 +119,8 @@ cd frontend && npm test  # 前端 vitest
 | Phase 1 | ✅ 完成 | 项目骨架：FastAPI + Vue3 基础架构，大盘指数、自选股管理 |
 | Phase 2 | ✅ 完成 | 技术分析 + 决策建议引擎 + 价格预警 + 性能优化 + 测试 |
 | Phase 3 | ✅ 完成 | 通知系统（邮件/Webhook）+ 前端预警管理 + 历史回测 |
-| Phase 4 | 📋 计划中 | AI 预测模型、多数据源、Docker 部署、用户认证、WebSocket 实时 |
+| Phase 4 | ✅ 完成 | 多数据源 + WebSocket 实时推送 + JWT 用户认证 |
+| Phase 5 | 📋 计划中 | AI 预测模型、Docker 部署、移动端适配、WebSocket 优化 |
 
 ## 许可证
 
