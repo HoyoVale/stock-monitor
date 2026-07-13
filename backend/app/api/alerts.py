@@ -6,9 +6,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.alert import AlertRule, AlertRecord
+from app.models.user import User
+from app.auth import get_current_user
 from app.schemas.alert import AlertRuleCreate, AlertRuleResponse, AlertRecordResponse
 
 router = APIRouter(prefix="/api/alerts", tags=["alerts"])
+
+
+def _user_filter(stmt, model, user):
+    """Apply user_id filter: authenticated → user.id, anon → NULL."""
+    if user:
+        return stmt.where(model.user_id == user.id)
+    return stmt.where(model.user_id.is_(None))
 
 
 @router.get("/rules", response_model=list[AlertRuleResponse])
@@ -16,8 +25,10 @@ async def list_alert_rules(
     stock_code: Optional[str] = None,
     enabled_only: bool = False,
     db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(get_current_user),
 ):
     stmt = select(AlertRule).order_by(AlertRule.created_at.desc())
+    stmt = _user_filter(stmt, AlertRule, user)
     if stock_code:
         stmt = stmt.where(AlertRule.stock_code == stock_code)
     if enabled_only:
@@ -27,10 +38,15 @@ async def list_alert_rules(
 
 
 @router.post("/rules", status_code=201, response_model=AlertRuleResponse)
-async def create_alert_rule(data: AlertRuleCreate, db: AsyncSession = Depends(get_db)):
+async def create_alert_rule(
+    data: AlertRuleCreate,
+    db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(get_current_user),
+):
     if data.alert_type not in ("price_above", "price_below"):
         raise HTTPException(400, "alert_type must be 'price_above' or 'price_below'")
     rule = AlertRule(
+        user_id=user.id if user else None,
         stock_code=data.stock_code,
         alert_type=data.alert_type,
         threshold=data.threshold,
@@ -43,8 +59,14 @@ async def create_alert_rule(data: AlertRuleCreate, db: AsyncSession = Depends(ge
 
 
 @router.delete("/rules/{rule_id}")
-async def delete_alert_rule(rule_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(AlertRule).where(AlertRule.id == rule_id))
+async def delete_alert_rule(
+    rule_id: int,
+    db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(get_current_user),
+):
+    stmt = select(AlertRule).where(AlertRule.id == rule_id)
+    stmt = _user_filter(stmt, AlertRule, user)
+    result = await db.execute(stmt)
     rule = result.scalar_one_or_none()
     if not rule:
         raise HTTPException(404, "预警规则不存在")
@@ -54,8 +76,15 @@ async def delete_alert_rule(rule_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.patch("/rules/{rule_id}")
-async def toggle_alert_rule(rule_id: int, enabled: bool, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(AlertRule).where(AlertRule.id == rule_id))
+async def toggle_alert_rule(
+    rule_id: int,
+    enabled: bool,
+    db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(get_current_user),
+):
+    stmt = select(AlertRule).where(AlertRule.id == rule_id)
+    stmt = _user_filter(stmt, AlertRule, user)
+    result = await db.execute(stmt)
     rule = result.scalar_one_or_none()
     if not rule:
         raise HTTPException(404, "预警规则不存在")
@@ -68,10 +97,11 @@ async def toggle_alert_rule(rule_id: int, enabled: bool, db: AsyncSession = Depe
 async def list_alert_records(
     limit: int = 50,
     db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(get_current_user),
 ):
-    result = await db.execute(
-        select(AlertRecord).order_by(AlertRecord.triggered_at.desc()).limit(limit)
-    )
+    stmt = select(AlertRecord).order_by(AlertRecord.triggered_at.desc()).limit(limit)
+    stmt = _user_filter(stmt, AlertRecord, user)
+    result = await db.execute(stmt)
     return [AlertRecordResponse.model_validate(r) for r in result.scalars().all()]
 
 
@@ -79,12 +109,13 @@ async def list_alert_records(
 async def get_unread_count(
     since: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    user: User | None = Depends(get_current_user),
 ):
     """返回最近 24 小时内触发的新预警记录数（供前端铃铛徽标使用）。"""
     from datetime import datetime, timedelta
     since_dt = datetime.fromisoformat(since) if since else datetime.now() - timedelta(hours=24)
-    result = await db.execute(
-        select(func.count(AlertRecord.id)).where(AlertRecord.triggered_at >= since_dt)
-    )
+    stmt = select(func.count(AlertRecord.id)).where(AlertRecord.triggered_at >= since_dt)
+    stmt = _user_filter(stmt, AlertRecord, user)
+    result = await db.execute(stmt)
     count = result.scalar() or 0
     return {"count": count}
