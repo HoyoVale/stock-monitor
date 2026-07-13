@@ -1,38 +1,50 @@
-version: "3.8"
+version: "3.9"
 
 services:
   backend:
     build:
-      context: .
-      dockerfile: Dockerfile.backend
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: stock-monitor-backend
     ports:
       - "8000:8000"
+    volumes:
+      - stock_data:/app/data
     environment:
-      - DATABASE_URL=sqlite+aiosqlite:///./data/stock_monitor.db
-      - TRADING_ONLY=true
-      - REFRESH_INTERVAL=300
+      - DATABASE_URL=sqlite+aiosqlite:////app/data/stock_monitor.db
+      - DATA_SOURCE=${DATA_SOURCE:-akshare}
+      - BACKUP_DATA_SOURCE=${BACKUP_DATA_SOURCE:-eastmoney}
+      - REFRESH_INTERVAL=${REFRESH_INTERVAL:-300}
       - SMTP_HOST=${SMTP_HOST:-}
       - SMTP_PORT=${SMTP_PORT:-587}
       - SMTP_USER=${SMTP_USER:-}
       - SMTP_PASSWORD=${SMTP_PASSWORD:-}
-      - ALERT_EMAIL_TO=${ALERT_EMAIL_TO:-}
-      - WECHAT_WEBHOOK_URL=${WECHAT_WEBHOOK_URL:-}
-      - DINGTALK_WEBHOOK_URL=${DINGTALK_WEBHOOK_URL:-}
-    volumes:
-      - backend-data:/app/data
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-me-in-production}
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/api/health').raise_for_status()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
   frontend:
     build:
-      context: .
-      dockerfile: Dockerfile.frontend
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: stock-monitor-frontend
     ports:
-      - "80:80"
+      - "${FRONTEND_PORT:-80}:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 volumes:
-  backend-data:
+  stock_data:
