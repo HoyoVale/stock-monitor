@@ -36,6 +36,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint for Docker/container orchestration."""
+    return {"status": "ok", "service": "stock-monitor-backend"}
+
+
 app.include_router(indices.router)
 app.include_router(stocks.router)
 app.include_router(watchlist.router)
